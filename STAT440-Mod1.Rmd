@@ -104,6 +104,13 @@ finalTest <- subset(combined, dataset == 0)
 
 
 ```{r}
+write.csv(finalTrain, file = "data/noNATrain3.csv",
+            row.names = FALSE)
+write.csv(finalTest, file = "data/noNATest3.csv",
+            row.names = FALSE)
+```
+
+```{r}
 mice_plot <- aggr(finalTrain, col=c('navyblue','yellow'),
                     numbers=TRUE, sortVars=TRUE,
                     labels=names(train), cex.axis=.7,
@@ -145,7 +152,7 @@ library(randomForest)
 #model3 <- randomForest(duration ~ confirmed+V1+clean_age+cough+sore.throat+city+province+fever+high.fever, data = completeTrain, ntree = 200, mtry = 6, importance = TRUE)
 #model3
 #the mean squared of residuals decreased when using just the important variable
-model3 <- randomForest(temp_duration ~ respiratory+confirmed+province+V1+clean_age, data = finalTrain, ntree = 200, mtry = 6, importance = TRUE)
+model3 <- randomForest(temp_duration ~ confirmed+cough+sore.throat+V1+country+pneumonia+clean_age+province+fever, data = finalTrain, ntree = 200, mtry = 6, importance = TRUE)
 model3
 ```
 
@@ -181,6 +188,6 @@ baseline <- cbind(test$X,predictions_test)
 #rename columns
 colnames(baseline)[1:2] <-c("Id","duration")
 #export to csv file
-write.csv(baseline, file = "data/baseline.txt",
+write.csv(baseline, file = "data/baseline67.csv",
             row.names = FALSE)
 ```
