@@ -73,6 +73,7 @@ summary(tempData_test)
 #check the inputed data
 tempData_test$imp$clean_age
 ```
+
 ```{r}
 test <- complete(tempData_test)
 completeTrain <- complete(tempData_train)
