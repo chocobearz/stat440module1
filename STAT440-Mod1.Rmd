@@ -118,7 +118,7 @@ mice_plot <- aggr(finalTest, col=c('navyblue','yellow'),
 ```
 
 ```{r}
-y_train = finalTrain$duration
+y_train = finalTrain$temp_duration
 ```
 
 ```{r}
@@ -128,7 +128,7 @@ model1 <- randomForest(temp_duration ~ ., data = finalTrain, importance = TRUE)
 model1
 
 #create another model with by adding more split
-model2 <- randomForest(temp_duration ~ ., data = completeTrain,ntree = 400, mtry = 6, importance = TRUE)
+model2 <- randomForest(temp_duration ~ ., data = finalTrain,ntree = 400, mtry = 6, importance = TRUE)
 model2
 ```
 
@@ -145,7 +145,7 @@ library(randomForest)
 #model3 <- randomForest(duration ~ confirmed+V1+clean_age+cough+sore.throat+city+province+fever+high.fever, data = completeTrain, ntree = 200, mtry = 6, importance = TRUE)
 #model3
 #the mean squared of residuals decreased when using just the important variable
-model3 <- randomForest(duration ~ respiratory+confirmed+province+V1+age, data = completeTrain, ntree = 200, mtry = 6, importance = TRUE)
+model3 <- randomForest(temp_duration ~ respiratory+confirmed+province+V1+clean_age, data = finalTrain, ntree = 200, mtry = 6, importance = TRUE)
 model3
 ```
 
@@ -168,11 +168,11 @@ data.frame(
 
 
 # Make predictions on training set
-predictions_train <- predict(model3, completeTrain)
-eval_results(y_train, predictions_train, completeTrain) 
+predictions_train <- predict(model3, finalTrain)
+eval_results(y_train, predictions_train, finalTrain) 
 
 # Make predictions on test set
-predictions_test <- predict(model3, test)
+predictions_test <- predict(model3, finalTest)
 ```
 
 ```{r}
@@ -181,6 +181,6 @@ baseline <- cbind(test$X,predictions_test)
 #rename columns
 colnames(baseline)[1:2] <-c("Id","duration")
 #export to csv file
-write.table(baseline, file = "baseline.txt", sep = ",",
+write.csv(baseline, file = "data/baseline.txt",
             row.names = FALSE)
 ```
