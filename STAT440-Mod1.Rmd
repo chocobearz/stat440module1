@@ -20,13 +20,17 @@ library(tidyverse)
 ```
 
 ```{r}
-setwd("/Users/nathaniasantoso/Desktop")
+#setwd("/Users/nathaniasantoso/Desktop")
 #load cleaned train and test data
-train <- read.csv("level2.csv", sep=",")
-test <- read.csv("test_level2.csv", sep=",")
+train <- read.csv("data/level3.csv", sep=",")
+test <- read.csv("data/test_level3.csv", sep=",")
 #change the value from T/F to 0 and 1
-train[,11:40] <- (train[,11:40])*1
-test[,11:40] <- (test[,11:40])*1
+#train[,11:40] <- (train[,11:40])*1
+#test[,11:40] <- (test[,11:40])*1
+train[,11:18] <- (train[,11:18])*1
+test[,11:18] <- (test[,11:18])*1
+test <- select (test,-c(age))
+train <- select (train,-c(age))
 #drop  missing values
 #train <- train[complete.cases(train), ]
 #test <- test[complete.cases(train), ]
@@ -34,39 +38,96 @@ test[,11:40] <- (test[,11:40])*1
 #using MICE package for missing data (Training Set)
 ```{r}
 library(mice)
+library(VIM)
 #see missing data pattern
-md.pattern(train)
-tempData_train <- mice(train,m=5,maxit=50,meth='pmm',seed=500)
+print(md.pattern(train))
+mice_plot <- aggr(train, col=c('navyblue','yellow'),
+                    numbers=TRUE, sortVars=TRUE,
+                    labels=names(train), cex.axis=.7,
+                    gap=3, ylab=c("Missing data","Pattern"))
+```
+```{r}
+print(md.pattern(test))
+mice_plot <- aggr(test, col=c('navyblue','yellow'),
+                    numbers=TRUE, sortVars=TRUE,
+                    labels=names(train), cex.axis=.7,
+                    gap=3, ylab=c("Missing data","Pattern"))
+```
+
+```{r}
+tempData_train <- mice(train,m=1,maxit=50,meth='pmm',seed=500)
 summary(tempData_train)
 #check the inputed data
 tempData_train$imp$clean_age
-completeTrain <- complete(tempData_train,1)
-completeTrain <- completeTrain%>% fill(confirmed)
+```
+
+
+```{r}
+tempData_test <- mice(test,m=1,maxit=50,meth='pmm',seed=500)
+summary(tempData_test)
+#check the inputed data
+tempData_test$imp$clean_age
+```
+```{r}
+test <- complete(tempData_test)
+completeTrain <- complete(tempData_train)
+```
+
+
+
+```{r}
+#impute missing factors values (date) in train data
+completeTrain$dataset <- 1
+test$dataset <- 0
+combined <- rbind(completeTrain, test)
+
+combined$confirmed = as.factor(combined$confirmed)
+combined$clean_age = as.factor(combined$clean_age)
+
+temp_duration <- combined$duration
+combined$duration <- NULL
+
+
+combined <- mice(combined,m=1,maxit=50,meth='polyreg',seed=500)
+combined$imp$confirmed
+combined$imp$clean_age
+combined<- complete(combined)
+```
+
+
+```{r}
+combined <- cbind(combined, temp_duration)
+finalTrain <- subset(combined, dataset == 1)
+finalTest <- subset(combined, dataset == 0)
+```
+
+
+```{r}
+mice_plot <- aggr(finalTrain, col=c('navyblue','yellow'),
+                    numbers=TRUE, sortVars=TRUE,
+                    labels=names(train), cex.axis=.7,
+                    gap=3, ylab=c("Missing data","Pattern"))
 ```
 
 ```{r}
-#fill NA value with value on previous row
-test <- test%>% fill(confirmed)
-test <- test%>% fill (clean_age)
+mice_plot <- aggr(finalTest, col=c('navyblue','yellow'),
+                    numbers=TRUE, sortVars=TRUE,
+                    labels=names(train), cex.axis=.7,
+                    gap=3, ylab=c("Missing data","Pattern"))
 ```
 
 ```{r}
-test <- select (test,-c(age))
-completeTrain <- select (completeTrain,-c(age))
-x = train %>% select(-duration) %>% data.matrix()
-y_train = completeTrain$duration
-
-x_test = test %>% select(-duration) %>% data.matrix()
-y_test = test$duration
+y_train = finalTrain$duration
 ```
 
 ```{r}
 #create a random forest model
 library(randomForest)
-model1 <- randomForest(duration ~ ., data = completeTrain, importance = TRUE)
+model1 <- randomForest(temp_duration ~ ., data = finalTrain, importance = TRUE)
 model1
+
 #create another model with by adding more split
-model2 <- randomForest(duration ~ ., data = completeTrain,ntree = 400, mtry = 6, importance = TRUE)
+model2 <- randomForest(temp_duration ~ ., data = completeTrain,ntree = 400, mtry = 6, importance = TRUE)
 model2
 ```
 
@@ -76,13 +137,17 @@ varImpPlot(model2)
 #based on the graph of the importance of each variables,I decided to omit some variables
 #and only take province, pneumonia, cough, country, V1, weakness, sore.throat, fever, muscular, soreness, vomitting as the predictors (since those are more importance based on the graph
 ```
+
 ```{r}
 library(randomForest)
 #build another model with just important variables
-model3 <- randomForest(duration ~ confirmed+clean_age+cough+sore.throat+city+province+fever, data = completeTrain, ntree = 200, mtry = 6, importance = TRUE)
-model3
+#model3 <- randomForest(duration ~ confirmed+V1+clean_age+cough+sore.throat+city+province+fever+high.fever, data = completeTrain, ntree = 200, mtry = 6, importance = TRUE)
+#model3
 #the mean squared of residuals decreased when using just the important variable
+model3 <- randomForest(duration ~ respiratory+confirmed+province+V1+age, data = completeTrain, ntree = 200, mtry = 6, importance = TRUE)
+model3
 ```
+
 ```{r}
 # Compute R^2 from true and predicted values
 eval_results <- function(true, predicted, df) {
@@ -102,12 +167,11 @@ data.frame(
 
 
 # Make predictions on training set
-predictions_train <- predict(model3, x)
+predictions_train <- predict(model3, completeTrain)
 eval_results(y_train, predictions_train, completeTrain) 
 
 # Make predictions on test set
-predictions_test <- predict(model3, x_test)
-eval_results(y_test, predictions_test, test)
+predictions_test <- predict(model3, test)
 ```
 
 ```{r}

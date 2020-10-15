@@ -2,7 +2,7 @@
 from sklearn.neighbors import KNeighborsRegressor
 
 # Read in the dataset
-dataset = pd.read_csv('https://raw.githubusercontent.com/mesushan/Salary-Prediciton-based-on-Years-of-Experience/master/Salary_Data.csv', encoding='latin')
+dataset = pd.read_csv('data\level1.csv', encoding='latin')
 
 # Separate the features (X) and target (y)
 # Reshape so each item is a list of features/targets
