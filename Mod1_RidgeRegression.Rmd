@@ -111,6 +111,8 @@ mice_plot <- aggr(finalTest, col=c('navyblue','yellow'),
 
 ```{r}
 y_train = finalTrain$temp_duration
+x = finalTrain %>% select(-temp_duration) %>% data.matrix()
+x_test = finalTest %>% select(-temp_duration) %>% data.matrix()
 ```
 
 #Ridge Regression
