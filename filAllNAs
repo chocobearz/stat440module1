@@ -1,0 +1,16 @@
+#impute missing numerical values
+pMiss <- function(x){sum(is.na(x))/length(x)*100}
+temp.num.train <- mice(train,m=5,maxit=50,meth='pmm',seed=500)
+train.complete.num <- complete(temp.num.train,1)
+temp.test <- mice(test,m=5,maxit=50,meth='pmm',seed=500)
+test <- complete(temp.test,1)
+apply(test,2,pMiss)
+
+#impute missing factors values (date) in train data
+train.complete.num$confirmed = as.factor(train.complete.num$confirmed)
+test.complete$confirmed = as.factor(test.complete$confirmed)
+
+temp.fac.train <- mice(train.complete.num,m=1,maxit=50,meth='polyreg',seed=500)
+completeTrain<- complete(temp.fac.train,1)
+apply(completeTrain,2,pMiss)
+View(completeTrain)
