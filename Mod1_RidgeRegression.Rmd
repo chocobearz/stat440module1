@@ -149,7 +149,6 @@ eval_results(y_train, predictions_train, finalTrain)
 
 # Prediction and evaluation on test data
 predictions_test <- predict(ridge_reg, s = optimal_lambda, newx = x_test)
-eval_results(y_test, predictions_test, finalTest)
 ```
 
 
