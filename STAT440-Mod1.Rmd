@@ -25,7 +25,6 @@ library(tidyverse)
 train <- read.csv("data/level3.csv", sep=",")
 test <- read.csv("data/test_level3.csv", sep=",")
 #change the value from T/F to 0 and 1
-<<<<<<< HEAD
 #train[,11:40] <- (train[,11:40])*1
 #test[,11:40] <- (test[,11:40])*1
 train[,11:18] <- (train[,11:18])*1
@@ -35,10 +34,6 @@ train <- select (train,-c(age))
 #drop  missing values
 #train <- train[complete.cases(train), ]
 #test <- test[complete.cases(train), ]
-=======
-train[,11:40] <- (train[,11:40])*1
-test[,11:40] <- (test[,11:40])*1
->>>>>>> ce38097f994763fa1c716b05856c1a315d0b36b4
 ```
 #using MICE package for missing data (Training Set)
 ```{r}
