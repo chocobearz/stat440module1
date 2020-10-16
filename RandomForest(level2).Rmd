@@ -1,0 +1,113 @@
+---
+title: "Random Forest (Module 1)"
+author: "Nathania Santoso"
+date: "9/28/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(plyr)
+library(readr)
+library(caret)
+library(ggplot2)
+library(repr)
+library(glmnet)
+library(tidyverse)
+```
+
+```{r}
+setwd("/Users/nathaniasantoso/Desktop")
+#load cleaned train and test data
+train <- read.csv("level2.csv", sep=",")
+test <- read.csv("test_level2.csv", sep=",")
+#change the value from T/F to 0 and 1
+train[,11:40] <- (train[,11:40])*1
+test[,11:40] <- (test[,11:40])*1
+```
+#using MICE package for missing data (Training Set)
+```{r}
+library(mice)
+#see missing data pattern
+md.pattern(train)
+tempData_train <- mice(train,m=5,maxit=50,meth='pmm',seed=500)
+summary(tempData_train)
+#check the inputed data
+tempData_train$imp$clean_age
+completeTrain <- complete(tempData_train,1)
+completeTrain <- completeTrain%>% fill(confirmed)
+```
+
+```{r}
+#fill NA value with value on previous row
+test <- test%>% fill(confirmed)
+test <- test%>% fill (clean_age)
+```
+
+```{r}
+test <- select (test,-c(age))
+completeTrain <- select (completeTrain,-c(age))
+x = completeTrain %>% select(-duration) %>% data.matrix()
+y_train = completeTrain$duration
+x_test = test %>% select(-duration) %>% data.matrix()
+y_test = test$duration
+```
+
+```{r}
+#create a random forest model
+library(randomForest)
+model1 <- randomForest(duration ~ ., data = completeTrain, importance = TRUE)
+model1
+#create another model with by adding more split
+model2 <- randomForest(duration ~ ., data = completeTrain,ntree = 400, mtry = 6, importance = TRUE)
+model2
+```
+
+```{r}
+#see the importance of each variable
+varImpPlot(model2) 
+#based on the graph of the importance of each variables,I decided to omit some variables
+#and only take confirmed, clean_age, cough, sore.throat, city, province, fever (since those are more important based on the graph)
+```
+```{r}
+library(randomForest)
+#build another model with just important variables
+model3 <- randomForest(duration ~ confirmed+clean_age+cough+sore.throat+city+province+fever, data = completeTrain, ntree = 200, mtry = 6, importance = TRUE)
+model3
+#the mean squared of residuals decreased when using just the important variable
+```
+```{r}
+# Compute R^2 from true and predicted values
+eval_results <- function(true, predicted, df) {
+  SSE <- sum((predicted - true)^2)
+  SST <- sum((true - mean(true))^2)
+  R_square <- 1 - SSE / SST
+  RMSE = sqrt(SSE/nrow(df))
+  
+# Model performance metrics
+data.frame(
+  RMSE = RMSE,
+  Rsquare = R_square
+)
+  
+}
+# Make predictions on training set
+predictions_train <- predict(model3, x)
+eval_results(y_train, predictions_train, completeTrain) 
+# Make predictions on test set
+predictions_test <- predict(model3, x_test)
+eval_results(y_test, predictions_test, test)
+```
+
+```{r}
+#create baseline file
+baseline <- cbind(test$X,predictions_test)
+#rename columns
+colnames(baseline)[1:2] <-c("Id","duration")
+#export to csv file
+write.table(baseline, file = "baseline.txt", sep = ",",
+            row.names = FALSE)
+```
