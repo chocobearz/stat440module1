@@ -5,8 +5,14 @@ date: "10/13/2020"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+library(plyr)
+library(readr)
+library(caret)
+library(ggplot2)
+library(repr)
+library(glmnet)
+library(tidyverse)
 ```
 
 ```{r}
@@ -17,26 +23,100 @@ test <- read.csv("test_level2.csv", sep=",")
 #change the value from T/F to 0 and 1
 train[,11:40] <- (train[,11:40])*1
 test[,11:40] <- (test[,11:40])*1
+#train[,7:10] <- (train[,7:10])*1
+#test[,7:10] <- (test[,7:10])*1
+#test <- select (test,-c(age))
+#train <- select (train,-c(age))
 #drop  missing values
-train <- train[complete.cases(train), ]
-test <- test[complete.cases(train), ]
+#train <- train[complete.cases(train), ]
+#test <- test[complete.cases(train), ]
+```
+#using MICE package for missing data (Training Set)
+```{r}
+library(mice)
+library(VIM)
+#see missing data pattern
+print(md.pattern(train))
+mice_plot <- aggr(train, col=c('navyblue','yellow'),
+                    numbers=TRUE, sortVars=TRUE,
+                    labels=names(train), cex.axis=.7,
+                    gap=3, ylab=c("Missing data","Pattern"))
+```
+```{r}
+print(md.pattern(test))
+mice_plot <- aggr(test, col=c('navyblue','yellow'),
+                    numbers=TRUE, sortVars=TRUE,
+                    labels=names(train), cex.axis=.7,
+                    gap=3, ylab=c("Missing data","Pattern"))
+```
+
+```{r}
+tempData_train <- mice(train,m=1,maxit=50,meth='pmm',seed=500)
+summary(tempData_train)
+#check the inputed data
+tempData_train$imp$clean_age
+```
+
+
+```{r}
+tempData_test <- mice(test,m=1,maxit=50,meth='pmm',seed=500)
+summary(tempData_test)
+#check the inputed data
+tempData_test$imp$clean_age
+```
+
+```{r}
+test <- complete(tempData_test)
+completeTrain <- complete(tempData_train)
+```
+
+
+
+```{r}
+#impute missing factors values (date) in train data
+completeTrain$dataset <- 1
+test$dataset <- 0
+combined <- rbind(completeTrain, test)
+combined$confirmed = as.factor(combined$confirmed)
+combined$clean_age = as.factor(combined$clean_age)
+temp_duration <- combined$duration
+combined$duration <- NULL
+combined <- mice(combined,m=1,maxit=50,meth='pmm',seed=500)
+combined$imp$confirmed
+combined$imp$clean_age
+combined<- complete(combined)
+```
+
+
+```{r}
+combined <- cbind(combined, temp_duration)
+finalTrain <- subset(combined, dataset == 1)
+finalTest <- subset(combined, dataset == 0)
+```
+
+
+```{r}
+mice_plot <- aggr(finalTrain, col=c('navyblue','yellow'),
+                    numbers=TRUE, sortVars=TRUE,
+                    labels=names(train), cex.axis=.7,
+                    gap=3, ylab=c("Missing data","Pattern"))
+```
+
+```{r}
+mice_plot <- aggr(finalTest, col=c('navyblue','yellow'),
+                    numbers=TRUE, sortVars=TRUE,
+                    labels=names(train), cex.axis=.7,
+                    gap=3, ylab=c("Missing data","Pattern"))
+```
+
+```{r}
+y_train = finalTrain$temp_duration
+x = finalTrain %>% select(-temp_duration) %>% data.matrix()
+x_test = finalTest %>% select(-temp_duration) %>% data.matrix()
 ```
 
 #Ridge Regression
 ```{r}
-library(plyr)
-library(readr)
-library(caret)
-library(ggplot2)
-library(repr)
-library(glmnet)
-library(tidyverse)
-
-x = train %>% select(-duration) %>% data.matrix()
-y_train = train$duration
-
-x_test = test %>% select(-duration) %>% data.matrix()
-y_test = test$duration
 
 lambdas <- 10^seq(2, -3, by = -.1)
 ridge_reg = glmnet(x, y_train, nlambda = 25, alpha = 0, family='gaussian',lambda=lambdas)   
@@ -67,22 +147,20 @@ data.frame(
 
 # Prediction and evaluation on train data
 predictions_train <- predict(ridge_reg, s = optimal_lambda, newx = x)
-eval_results(y_train, predictions_train, train)
+eval_results(y_train, predictions_train, finalTrain)
 
 # Prediction and evaluation on test data
 predictions_test <- predict(ridge_reg, s = optimal_lambda, newx = x_test)
-eval_results(y_test, predictions_test, test)
 ```
+
+
+
 ```{r}
 #create baseline file
-baseline <- cbind(train[,1],predictions_test)
-mean_duration <- mean(baseline[,2])
-baseline <- cbind(train[1:200,1],mean_duration)
+baseline <- cbind(test$X,predictions_test)
 #rename columns
 colnames(baseline)[1:2] <-c("Id","duration")
 #export to csv file
-write.table(baseline, file = "baseline.txt", sep = ",",
+write.csv(baseline, file = "baseline.txt",
             row.names = FALSE)
 ```
-
-
